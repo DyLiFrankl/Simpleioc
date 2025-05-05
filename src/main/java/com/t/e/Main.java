@@ -18,10 +18,10 @@ public class Main {
         SimpleIoC container = new SimpleIoC(scanPackages, xmlPaths);
         Object o = container.getXmlBean("userRepository");
         //获取UserService实例
-        UserService userService = container.getBean(UserService.class);
+        UserService userService = container.getInstance(UserService.class);
         container.publishEvent(new UserCreatedEvent(userService, "John Doe"));
         userService.printUserName();
-        userService.getUserName();
+//        userService.getUserName();
 //        container.getBean(AssertUtils.class);
         // 单例 Bean
         SingletonBean singleton1 = container.getBean(SingletonBean.class);
@@ -36,7 +36,7 @@ public class Main {
 
         //测试@AfterThrowing
         try{
-//            userService.throwException();
+            userService.throwException();
         }catch (Exception e){
             e.printStackTrace();
         }

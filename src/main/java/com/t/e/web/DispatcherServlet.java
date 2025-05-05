@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
+import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -16,7 +17,7 @@ import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-
+@MultipartConfig
 public class DispatcherServlet extends HttpServlet {
     private SimpleIoC container;
     private Map<String, HandlerMapping> handlerMappings = new HashMap<>(); // URL → 处理方法映射
@@ -114,6 +115,6 @@ public class DispatcherServlet extends HttpServlet {
     private String convertToJson(Object obj) {
         StringBuilder sb = new StringBuilder();
         SerializeUtils.serializeValue(obj, sb);
-        return "{\"data\":\"" + sb + "\"}";
+        return "{\"data\":" + sb + "}";
     }
 }

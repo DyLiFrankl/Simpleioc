@@ -5,9 +5,7 @@ import com.t.e.data.JdbcTemplate;
 import com.t.e.service.UserService;
 import com.t.e.simpleioc.annotations.Autowired;
 import com.t.e.simpleioc.annotations.Component;
-import com.t.e.web.Controller;
-import com.t.e.web.RequestMapping;
-import com.t.e.web.ResponseBody;
+import com.t.e.web.*;
 import generator.domain.Category;
 
 import java.util.List;
@@ -50,4 +48,13 @@ public class UserController {
     public String test() {
         return "test"; // 返回视图名（对应 success.html）
     }
+
+    @RequestMapping(value = "/test1", method = "POST")
+    @ResponseBody
+    public User test(@RequestBody User user) {
+        return user;
+    }
+//    public String test(@RequestParam(value = "id")Integer id, @RequestParam(value = "name",required = false)String name) {
+//        return id.toString()+name;
+//    }
 }

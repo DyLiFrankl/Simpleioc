@@ -19,6 +19,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -34,6 +35,10 @@ import net.sf.cglib.proxy.MethodInterceptor;
 
 
 public class SimpleIoC {
+
+    public ContainerState getState() {
+        return state;
+    }
 
     @FunctionalInterface
     public interface ObjectFactory<T> {
@@ -73,21 +78,29 @@ public class SimpleIoC {
     //xml配置bean
     private final Map<String, BeanDefinition> beanDefinitions = new HashMap<>();
 
+    private ContainerState state;
     public SimpleIoC(String[] scanPackages, String... xmlPaths) throws Exception {
-        // 加载 XML 配置
         loadXmlConfiguration(xmlPaths);
-        // 初始化容器时加载配置
+        state = ContainerState.XML_LOADED;
+
         PropertyUtils.load("jdbc.properties");
-        // 扫描包路径
         scanPackage(scanPackages);
-        // 应用切面逻辑
+        state = ContainerState.SCANNED;
+
         applyAspects();
-        // 注册监听器
+        state = ContainerState.ASPECT_APPLIED;
+
         registerListeners();
-        //condition
-        condition();
-        // 注入依赖
+        state = ContainerState.LISTENERS_READY;
+
         injectDependencies();
+        state = ContainerState.DEPENDENCIES_INJECTED;
+
+        condition();
+        state = ContainerState.CONDITIONS_CHECKED;
+
+        // 最终状态
+        state = ContainerState.READY;
     }
 
     private void condition() {
@@ -164,7 +177,7 @@ public class SimpleIoC {
            }
 
            // 解码 URL 路径
-           String filePath = URLDecoder.decode(resource.getFile(), "UTF-8");
+           String filePath = URLDecoder.decode(resource.getFile(), StandardCharsets.UTF_8);
            File directory = new File(filePath);
 
            // 检查 directory 是否是有效的目录
@@ -222,18 +235,28 @@ public class SimpleIoC {
     private void startCreateBeans(Class<?> clazz) throws Exception {
         // 检查是否有 @Component 注解
         if (isAnnotationPresent(clazz, Component.class, new HashSet<>())) {
+            registerBean(clazz);
             // 检查条件是否满足
-            if (shouldRegisterBean(clazz)) {
-                // 注册 Bean
-                registerBean(clazz);
-            }
+//            if (shouldRegisterBean(clazz)) {
+//                // 注册 Bean
+//                registerBean(clazz);
+//            }
         }
     }
 
     // 条件检查核心逻辑
     private boolean shouldRegisterBean(Class<?> clazz) {
+        // 简单实现：如果类名包含 "$$EnhancerByCGLIB$$"，则尝试获取父类
+        if (clazz.getName().contains("$$EnhancerByCGLIB$$")) {
+            clazz = clazz.getSuperclass();
+        }
         // 获取所有条件注解
         List<Annotation> conditionalAnnotations = getConditionalAnnotations(clazz);
+
+        // 如果没有条件注解则直接返回true
+        if (conditionalAnnotations.isEmpty()) {
+            return true;
+        }
 
         // 创建上下文（需传递类加载器和目标类）
         SimpleConditionContext context = new SimpleConditionContext(
@@ -263,6 +286,7 @@ public class SimpleIoC {
     }
 
     private List<Annotation> getConditionalAnnotations(Class<?> clazz) {
+
         List<Annotation> conditionalAnnotations = new ArrayList<>();
 
         // 获取直接标记的 @Conditional 注解
@@ -290,7 +314,7 @@ public class SimpleIoC {
             // 单例 Bean 的处理逻辑
             beanScope(clazz);
         }
-    };
+    }
 
     private void beanScope(Class<?> clazz) throws Exception {
         // 获取作用域（默认为单例）
@@ -413,7 +437,7 @@ public class SimpleIoC {
     // 递归方法，用于提取最根本的异常原因
     public static Throwable getRootCause(Throwable ex) {
         if (ex instanceof InvocationTargetException) {
-            return getRootCause(((InvocationTargetException) ex).getCause());
+            return getRootCause(ex.getCause());
         } else if (ex instanceof UndeclaredThrowableException) {
             return getRootCause(((UndeclaredThrowableException) ex).getUndeclaredThrowable());
         }
@@ -691,6 +715,15 @@ public class SimpleIoC {
                 field.set(bean, dependency);
             }
         }
+    }
+
+    public <T> T getInstance(Class<T> clazz) throws Exception{
+        if(state == ContainerState.READY){
+            if(!shouldRegisterBean(clazz)){
+                throw new RuntimeException(clazz.getName() + " should not be created");
+            }
+        }
+        return getBean(clazz);
     }
 
     public <T> T getBean(Class<T> clazz) throws Exception {
