@@ -1,5 +1,6 @@
 package com.t.e.web;
 
+import java.io.IOException;
 import java.lang.reflect.Parameter;
 
 public interface ParameterSource {
@@ -10,5 +11,5 @@ public interface ParameterSource {
     String[] getParameterValues(String name);
 
     // 获取body数据（如JSON）
-    <T> T getBody(Class<T> bodyType, Parameter parameter);
+    <T> T getBody(Class<T> bodyType, Parameter parameter) throws IOException;
 }

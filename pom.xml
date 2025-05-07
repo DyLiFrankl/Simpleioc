@@ -84,7 +84,6 @@
             <version>9.4.46.v20220331</version>
             <scope>test</scope>
         </dependency>
-
     </dependencies>
 
     <build>

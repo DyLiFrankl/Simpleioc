@@ -17,7 +17,7 @@ public class BeanPropertyRowMapper<T> implements RowMapper<T> {
         // 缓存字段元数据
         for (Field field : mappedClass.getDeclaredFields()) {
             field.setAccessible(true);
-            fieldMap.put(field.getName().toLowerCase(), field);
+            fieldMap.put(field.getName(), field);
         }
     }
 
@@ -25,16 +25,44 @@ public class BeanPropertyRowMapper<T> implements RowMapper<T> {
     public T mapRow(ResultSet rs, int rowNum) throws SQLException, IllegalAccessException {
         T obj = instantiateClass(mappedClass);
         ResultSetMetaData metaData = rs.getMetaData();
+
         for (int i = 1; i <= metaData.getColumnCount(); i++) {
-            String column = metaData.getColumnLabel(i).toLowerCase();
-            Field field = fieldMap.get(column);
+            String columnName = metaData.getColumnLabel(i);
+            String fieldName = snakeToCamel(columnName);
+            Field field = fieldMap.get(fieldName);
+
             if (field != null) {
                 Object value = rs.getObject(i);
+                if (value instanceof java.sql.Timestamp) {
+                    value = ((java.sql.Timestamp) value).toLocalDateTime(); // 转换为 LocalDateTime
+                }
                 field.set(obj, value);
             }
         }
         return obj;
     }
+
+    // 下划线转驼峰（snake_case → camelCase）
+    private String snakeToCamel(String snakeCase) {
+        StringBuilder camelCase = new StringBuilder();
+        boolean nextUpper = false;
+
+        for (int i = 0; i < snakeCase.length(); i++) {
+            char c = snakeCase.charAt(i);
+            if (c == '_') {
+                nextUpper = true;
+            } else {
+                if (nextUpper) {
+                    camelCase.append(Character.toUpperCase(c));
+                    nextUpper = false;
+                } else {
+                    camelCase.append(c);
+                }
+            }
+        }
+        return camelCase.toString();
+    }
+
 
     private T instantiateClass(Class<T> clazz) {
         try {

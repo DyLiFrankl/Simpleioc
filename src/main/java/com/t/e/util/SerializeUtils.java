@@ -2,6 +2,7 @@ package com.t.e.util;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.time.LocalDateTime;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -19,7 +20,10 @@ public class SerializeUtils {
             serializeArray(value, sb);
         } else if (value instanceof Map) {
             serializeMap((Map<?, ?>) value, sb);
-        } else {
+        }
+        else if (value instanceof LocalDateTime) {
+            serializeLocalDateTime((LocalDateTime) value, sb);}
+        else {
             serializeObject(value, sb);
         }
     }
@@ -75,6 +79,11 @@ public class SerializeUtils {
             }
         }
         sb.append('}');
+    }
+
+    // 新增：序列化 LocalDateTime
+    private static void serializeLocalDateTime(LocalDateTime dateTime, StringBuilder sb) {
+        sb.append('"').append(dateTime.toString()).append('"');
     }
     // 新增方法：处理数组类型
     private static void serializeArray(Object array, StringBuilder sb) {

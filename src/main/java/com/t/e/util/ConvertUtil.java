@@ -72,10 +72,6 @@ public class ConvertUtil {
         return convertBasicType(values[0], targetType);
     }
 
-//    private static Object convertValues(String[] values, Method method, Parameter parameter) {
-//        // 复用之前的转换逻辑
-//
-//    }
     /**
      * 解析List类型（支持泛型，如 List<String> 或 List<User>）
      */
@@ -170,7 +166,7 @@ public class ConvertUtil {
     /**
      * 解析自定义对象（支持嵌套字段）
      */
-    private static Object parseObject(String value, Class<?> targetType) {
+    public static Object parseObject(String value, Class<?> targetType) {
         try {
             // JSON格式（如 {"name":"Alice", "age":25}）
             if (value.startsWith("{")) {

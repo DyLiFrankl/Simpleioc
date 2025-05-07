@@ -3,6 +3,7 @@ package com.t.e.web;
 import javax.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 
 // 处理器映射封装类
@@ -25,21 +26,12 @@ public class HandlerMapping {
         return method;
     }
 
-    public Object invoke(HttpServletRequest request) throws Exception {
+    public Object invoke(ParameterSource parameterSource) throws Exception {
         // 参数绑定
         Object[] args = new Object[method.getParameterCount()];
 
-        MyParamProcessor.process(method,args,request);
-//        for (int i = 0; i < args.length; i++) {
-//            Class<?> paramType = method.getParameterTypes()[i];
-//            if (paramType == HttpServletRequest.class) {
-//                args[i] = request;
-//            } else {
-//                String name = method.getParameters()[i].getName();
-//                String paramValue = request.getParameter(name);
-//                args[i] = paramValue;
-//            }
-//        }
+        MyParamProcessor.process(method,args,parameterSource);
+
         return method.invoke(controller, args);
     }
 }

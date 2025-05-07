@@ -4,6 +4,7 @@ import com.t.e.simpleioc.SimpleIoC;
 import com.t.e.util.SerializeUtils;
 import jakarta.servlet.ServletException;
 
+import javax.servlet.AsyncContext;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.annotation.MultipartConfig;
@@ -17,13 +18,19 @@ import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.*;
+import java.util.logging.Logger;
+
 @MultipartConfig
 public class DispatcherServlet extends HttpServlet {
+    private ExecutorService threadPool; // 线程池
     private SimpleIoC container;
     private Map<String, HandlerMapping> handlerMappings = new HashMap<>(); // URL → 处理方法映射
-
+    private static final Logger logger = Logger.getLogger(DispatcherServlet.class.getName());
     @Override
     public void init() {
+        // 初始化线程池（建议使用有界队列）
+        threadPool = Executors.newFixedThreadPool(200); // 根据机器性能调整
         // 初始化 IoC 容器（假设配置文件已指定扫描包）
         try {
             String[] scanPackages = new String[]{"com.t.e.controller","com.t.e.service","com.t.e.bean","com.t.e.test", "com.t.e.test.listener"};
@@ -70,19 +77,68 @@ public class DispatcherServlet extends HttpServlet {
             resp.sendError(404, "Not Found");
             return;
         }
+        // 在主线程提取所有必要数据
+        ParameterSource parameterSource = new AsyncRequestSource(req);
 
+        // 同步阻塞处理业务逻辑（保持主线程存活）
+//        try {
+//            Object result = threadPool.submit(() -> handler.invoke(parameterSource))
+//                    .get(5, TimeUnit.SECONDS); // 设置超时
+//
+//            // 主线程直接写响应
+//            writeResponse(resp, result, handler.getMethod());
+//        } catch (TimeoutException e) {
+//            resp.sendError(503, "Timeout");
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            resp.sendError(500, e.getMessage());
+//        }
+
+        // 使用 HttpServletRequest 和 HttpServletResponse 明确类型
+        AsyncContext asyncContext = req.startAsync();
+        threadPool.submit(() -> {
+            try {
+                Object result = handler.invoke(parameterSource);
+                HttpServletResponse asyncResp = (HttpServletResponse) asyncContext.getResponse();
+                writeResponse(asyncResp, result, handler.getMethod());
+            } catch (Exception e) {
+                handleAsyncError(asyncContext, e);
+            } finally {
+                asyncContext.complete();
+            }
+        });
+    }
+
+    @Override
+    public void destroy() {
+        threadPool.shutdown(); // 平滑关闭（等待执行中的任务完成）
         try {
-            // 调用控制器方法
-            Object result = handler.invoke(req);
-            // 处理响应
-            Method m = handler.getMethod();
-            writeResponse(resp, result, handler.getMethod());
-        } catch (Exception e) {
-            resp.sendError(500, "Internal Error: " + e.getMessage());
+            if (!threadPool.awaitTermination(60, TimeUnit.SECONDS)) {
+                threadPool.shutdownNow(); // 强制终止剩余任务
+            }
+        } catch (InterruptedException e) {
+            threadPool.shutdownNow();
+            Thread.currentThread().interrupt();
         }
     }
 
-    private void writeResponse(HttpServletResponse resp, Object result, Method method) throws IOException {
+    // 将错误处理提取到单独方法
+    private void handleAsyncError(AsyncContext asyncContext, Exception e) {
+        try {
+            HttpServletResponse asyncResp = (HttpServletResponse) asyncContext.getResponse();
+            if (e instanceof TimeoutException) {
+                asyncResp.sendError(503, "Timeout");
+            } else {
+                asyncResp.sendError(500, "Internal Error: "+e.getMessage()); // 生产环境建议不暴露e.getMessage()
+            }
+        } catch (IOException ex) {
+            logger.severe("Failed to send error response: "+ ex.getMessage());
+        }
+        logger.severe("Handler invocation failed: "+ e.getMessage()); // 使用日志替代printStackTrace
+    }
+
+
+    private synchronized void writeResponse(HttpServletResponse resp, Object result, Method method) throws IOException {
         if (method.isAnnotationPresent(ResponseBody.class)) {
             // 返回 JSON
             resp.setContentType("application/json");
@@ -115,6 +171,6 @@ public class DispatcherServlet extends HttpServlet {
     private String convertToJson(Object obj) {
         StringBuilder sb = new StringBuilder();
         SerializeUtils.serializeValue(obj, sb);
-        return "{\"data\":" + sb + "}";
+        return sb.toString();
     }
 }

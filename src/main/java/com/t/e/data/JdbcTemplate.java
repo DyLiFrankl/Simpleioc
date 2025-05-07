@@ -21,7 +21,7 @@ public class JdbcTemplate {
     public <T> List<T> query(String sql, RowMapper<T> rowMapper, Object... args) {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-
+            conn.setAutoCommit(true);
             setParameters(ps, args);
             ResultSet rs = ps.executeQuery();
 
@@ -42,7 +42,6 @@ public class JdbcTemplate {
     public int update(String sql, Object... args) {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-
             setParameters(ps, args);
             return ps.executeUpdate();
         } catch (SQLException e) {

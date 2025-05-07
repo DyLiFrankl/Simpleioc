@@ -3,7 +3,7 @@ package generator.domain;
 
 import java.io.Serializable;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 
 /**
@@ -44,12 +44,12 @@ public class Category implements Serializable {
      * 创建时间
      */
 
-    private Date createTime;
+    private LocalDateTime createTime;
     /**
      * 更新时间
      */
 
-    private Date updateTime;
+    private LocalDateTime updateTime;
     /**
      * 删除标记（0:不可用 1:可用）
      */
@@ -101,14 +101,14 @@ public class Category implements Serializable {
     /**
      * 创建时间
      */
-    public void setCreateTime(Date createTime){
+    public void setCreateTime(LocalDateTime createTime){
         this.createTime = createTime;
     }
 
     /**
      * 更新时间
      */
-    public void setUpdateTime(Date updateTime){
+    public void setUpdateTime(LocalDateTime updateTime){
         this.updateTime = updateTime;
     }
 
@@ -165,14 +165,14 @@ public class Category implements Serializable {
     /**
      * 创建时间
      */
-    public Date getCreateTime(){
+    public LocalDateTime getCreateTime(){
         return this.createTime;
     }
 
     /**
      * 更新时间
      */
-    public Date getUpdateTime(){
+    public LocalDateTime getUpdateTime(){
         return this.updateTime;
     }
 
