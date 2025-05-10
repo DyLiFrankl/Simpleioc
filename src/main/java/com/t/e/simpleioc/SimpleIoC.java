@@ -93,7 +93,7 @@ public class SimpleIoC {
         registerListeners();
         state = ContainerState.LISTENERS_READY;
 
-        injectDependencies();
+//        injectDependencies();
         state = ContainerState.DEPENDENCIES_INJECTED;
 
         condition();
@@ -403,7 +403,7 @@ public class SimpleIoC {
             Throwable throwable = null;
 
             try {
-                // 2. 执行 @Before 通知
+                // 2. 执行 @Before 通知, 通过方法反射得到其所在的对象
                 invokeAdviceMethods(beforeMethods, new ProceedingJoinPoint(target, method, args));
 
                 // 3. 执行 @Around 通知（如果有）
@@ -681,7 +681,7 @@ public class SimpleIoC {
             };
             singletonFactories.put(beanName, factory);
 
-            // 3. 填充属性
+            // 3. 填充属性(字段注入)
             populateBean(beanInstance);
 
             // 4. 初始化（调用 @PostConstruct 方法）

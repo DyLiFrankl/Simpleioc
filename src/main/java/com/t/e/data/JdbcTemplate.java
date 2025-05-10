@@ -2,6 +2,9 @@ package com.t.e.data;
 
 import com.t.e.simpleioc.annotations.Autowired;
 import com.t.e.simpleioc.annotations.Component;
+import com.t.e.util.PropertyUtils;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -12,6 +15,8 @@ public class JdbcTemplate {
     @Autowired
     private SimpleDataSource dataSource;
 
+    private final HikariDataSource hikariDataSource = new HikariDataSource(PropertyUtils.getHikariConfig());
+
     // 查询单条记录
     public <T> T queryForObject(String sql, RowMapper<T> rowMapper, Object... args) {
         return query(sql, rowMapper, args).stream().findFirst().orElse(null);
@@ -19,7 +24,7 @@ public class JdbcTemplate {
 
     // 查询多条记录
     public <T> List<T> query(String sql, RowMapper<T> rowMapper, Object... args) {
-        try (Connection conn = dataSource.getConnection();
+        try (Connection conn = hikariDataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             conn.setAutoCommit(true);
             setParameters(ps, args);
@@ -40,7 +45,7 @@ public class JdbcTemplate {
 
     // 更新操作（INSERT/UPDATE/DELETE）
     public int update(String sql, Object... args) {
-        try (Connection conn = dataSource.getConnection();
+        try (Connection conn = hikariDataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             setParameters(ps, args);
             return ps.executeUpdate();
@@ -51,7 +56,7 @@ public class JdbcTemplate {
 
     // 批处理操作
     public int[] batchUpdate(String sql, List<Object[]> batchArgs) {
-        try (Connection conn = dataSource.getConnection();
+        try (Connection conn = hikariDataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             for (Object[] args : batchArgs) {

@@ -35,11 +35,11 @@ public class Main {
 
 
         //测试@AfterThrowing
-        try{
-            userService.throwException();
-        }catch (Exception e){
-            e.printStackTrace();
-        }
+//        try{
+//            userService.throwException();
+//        }catch (Exception e){
+//            e.printStackTrace();
+//        }
 
         // 当条件类存在时
         try {

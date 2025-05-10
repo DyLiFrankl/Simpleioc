@@ -2,6 +2,8 @@ package com.t.e.data;
 
 import com.t.e.simpleioc.annotations.Component;
 import com.t.e.util.PropertyUtils;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -12,6 +14,7 @@ public class SimpleDataSource implements DataSource {
     private String url;
     private String username;
     private String password;
+
 
     // 通过配置类或properties文件注入参数
     public SimpleDataSource() {
@@ -25,6 +28,7 @@ public class SimpleDataSource implements DataSource {
         this.username = PropertyUtils.get("jdbc.username");
         this.password = PropertyUtils.get("jdbc.password");
     }
+
 
     @Override
     public Connection getConnection() throws SQLException {

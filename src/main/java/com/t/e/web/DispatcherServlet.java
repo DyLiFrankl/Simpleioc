@@ -1,5 +1,8 @@
 package com.t.e.web;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.t.e.simpleioc.SimpleIoC;
 import com.t.e.util.SerializeUtils;
 import jakarta.servlet.ServletException;
@@ -24,6 +27,11 @@ import java.util.logging.Logger;
 @MultipartConfig
 public class DispatcherServlet extends HttpServlet {
     private ExecutorService threadPool; // 线程池
+    private static final // 初始化 ObjectMapper 时注册模块
+    ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule()) // 处理 LocalDateTime
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS); // 禁用时间戳格式
+
     private SimpleIoC container;
     private Map<String, HandlerMapping> handlerMappings = new HashMap<>(); // URL → 处理方法映射
     private static final Logger logger = Logger.getLogger(DispatcherServlet.class.getName());
@@ -50,7 +58,7 @@ public class DispatcherServlet extends HttpServlet {
     }
 
     private void registerHandlers() {
-        Object o =  container.getBeansWithAnnotation(Controller.class).values();
+
         for (Object bean : container.getBeansWithAnnotation(Controller.class).values()) {
             Class<?> clazz = bean.getClass();
             // 类级别的 @RequestMapping（定义父路径）
@@ -141,8 +149,10 @@ public class DispatcherServlet extends HttpServlet {
     private synchronized void writeResponse(HttpServletResponse resp, Object result, Method method) throws IOException {
         if (method.isAnnotationPresent(ResponseBody.class)) {
             // 返回 JSON
+//            resp.setContentType("application/json");
+//            resp.getWriter().write(convertToJson(result));
             resp.setContentType("application/json");
-            resp.getWriter().write(convertToJson(result));
+            objectMapper.writeValue(resp.getWriter(), result);
         } else {
             // 返回 HTML 视图（需实现视图解析）
             resp.setContentType("text/html");
@@ -167,7 +177,7 @@ public class DispatcherServlet extends HttpServlet {
         }
     }
 
-    // 示例：简单 JSON 转换（可替换为 Jackson/Gson）
+    // 示例：简单 JSON 转换
     private String convertToJson(Object obj) {
         StringBuilder sb = new StringBuilder();
         SerializeUtils.serializeValue(obj, sb);
