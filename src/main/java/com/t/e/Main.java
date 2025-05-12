@@ -12,7 +12,7 @@ import com.t.e.util.AssertUtils;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-        String[] scanPackages = new String[]{"com.t.e.service","com.t.e.bean","com.t.e.test", "com.t.e.test.listener"};
+        String[] scanPackages = new String[]{"com.t.e.controller","com.t.e.service","com.t.e.bean","com.t.e.test", "com.t.e.test.listener"};
         String xmlPaths = new String("src/main/resources/META-INF/custom-beans.xml");
         //初始化IoC容器
         SimpleIoC container = new SimpleIoC(scanPackages, xmlPaths);

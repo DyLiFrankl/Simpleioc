@@ -41,7 +41,7 @@ public class DispatcherServlet extends HttpServlet {
         threadPool = Executors.newFixedThreadPool(200); // 根据机器性能调整
         // 初始化 IoC 容器（假设配置文件已指定扫描包）
         try {
-            String[] scanPackages = new String[]{"com.t.e.controller","com.t.e.service","com.t.e.bean","com.t.e.test", "com.t.e.test.listener"};
+            String[] scanPackages = new String[]{"com.t.e"};
             String xmlPaths = "src/main/resources/META-INF/custom-beans.xml";
             //初始化IoC容器
             container = new SimpleIoC(scanPackages, xmlPaths);

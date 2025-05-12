@@ -93,8 +93,7 @@ public class SimpleIoC {
         registerListeners();
         state = ContainerState.LISTENERS_READY;
 
-//        injectDependencies();
-        state = ContainerState.DEPENDENCIES_INJECTED;
+//        state = ContainerState.DEPENDENCIES_INJECTED;
 
         condition();
         state = ContainerState.CONDITIONS_CHECKED;
@@ -185,20 +184,40 @@ public class SimpleIoC {
                throw new RuntimeException("Path is not a directory: " + filePath);
            }
 
-           // 遍历目录中的文件
-           File[] files = directory.listFiles();
-           if (files == null) {
-               throw new RuntimeException("Unable to list files in directory: " + filePath);
-           }
-
-           for (File file : files) {
-               if (file.getName().endsWith(".class")) {
-                   String className = basePackage + "." + file.getName().replace(".class", "");
-                   Class<?> clazz = Class.forName(className, true, classLoader);
-                   startCreateBeans(clazz);
-               }
-           }
+           // 递归扫描目录
+           scanDirectory(directory, basePackage, classLoader);
        }
+    }
+
+    private void scanDirectory(File directory, String packageName, ClassLoader classLoader) throws Exception {
+        File[] files = directory.listFiles();
+        if (files == null) {
+            return;
+        }
+
+        for (File file : files) {
+            if (file.isDirectory()) {
+                // 如果是目录，递归扫描
+                scanDirectory(file, packageName + "." + file.getName(), classLoader);
+            } else if (file.getName().endsWith(".class")) {
+                // 如果是类文件，加载类
+                String className = packageName + "." + file.getName().replace(".class", "");
+                try {
+                    Class<?> clazz = Class.forName(className, true, classLoader);
+                    if (!clazz.isAnnotation() && !isExist(clazz)) {
+                        // 只有非注解类型才进行实例化
+                        startCreateBeans(clazz);
+                    }
+                } catch (ClassNotFoundException e) {
+                    System.err.println("Failed to load class: " + className);
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+    //检查容器是否已经存在bean
+    public Boolean isExist(Class<?> clazz) {
+        return singletonObjects.containsKey(clazz.getName()) || prototypeBeanClasses.containsKey(clazz.getName());
     }
 
     // 获取所有带有指定注解的 Bean 实例
@@ -372,15 +391,18 @@ public class SimpleIoC {
         });
     }
 
-    private void applyAspects() {
+    private void applyAspects() throws Exception {
         for (String beanName : new ArrayList<>(singletonObjects.keySet())) {
             Object bean = singletonObjects.get(beanName);
             Object proxy = createProxyIfNeeded(bean);
-            if (proxy != null) {
+            if (proxy.getClass().getName().contains("$$EnhancerByCGLIB$$")) {
 //                beans.put(beanName, proxy); // 替换为代理对象
                 singletonObjects.put(beanName,proxy); //暂且替换 TODO
+                injectProxyDependencies(bean.getClass().getName(),proxy);
             }
         }
+
+
     }
 
     private Object createProxyIfNeeded(Object target) {
@@ -554,7 +576,7 @@ public class SimpleIoC {
     private Object createBeanInstance(Class<?> clazz) throws Exception {
         // 查找带 @Autowired 注解的构造函数
         Constructor<?> constructor = findAutowiredConstructor(clazz);
-        Object instance;
+        Object instance = null;
 
         if (constructor != null) {
             // 获取构造函数的参数类型
@@ -602,9 +624,9 @@ public class SimpleIoC {
 
             // 将 Bean 的早期引用放入缓存
             earlySingletonObjects.put(clazz.getName(), instance);
+
         }
 
-        // 调用初始化方法
         invokePostConstruct(instance);
 
         return instance;
@@ -642,28 +664,35 @@ public class SimpleIoC {
         }
     }
 
-    private void injectDependencies() throws Exception {
+    private void injectProxyDependencies(String proxyName,Object proxy) throws Exception {
         for (Object bean : singletonObjects.values()) {
+            if(bean.getClass().getName().split("\\$\\$")[0].equals(proxyName)) continue;
             for (Field field : bean.getClass().getDeclaredFields()) {
-                if (field.isAnnotationPresent(Autowired.class)) {
-                    // 设置字段可访问
+                String fieldName = field.getType().getName();
+
+                if(proxyName.equals(fieldName)) {
                     field.setAccessible(true);
-                    // 从容器中获取依赖对象并注入
-                    Object dependency = singletonObjects.get(field.getType().getName());
-                    if (dependency != null) {
-                        field.set(bean, dependency);
-                    } else {
-                        // 从原型bean容器中查找依赖对象并注入
-                        Class<?> prototypeBeanClass = prototypeBeanClasses.get(field.getType().getName());
-                        if (prototypeBeanClass != null) {
-                            // 创建原型Bean实例
-                            dependency = doCreateBean(prototypeBeanClass);
-                            field.set(bean, dependency);
-                        } else {
-                            throw new RuntimeException("Dependency not found: " + field.getType().getName());
-                        }
-                    }
+                    field.set(bean, proxy);
                 }
+//                if (field.isAnnotationPresent(Autowired.class)) {
+//                    // 设置字段可访问
+//                    field.setAccessible(true);
+//                    // 从容器中获取依赖对象并注入
+//                    Object dependency = singletonObjects.get(field.getType().getName());
+//                    if (dependency != null) {
+//                        field.set(bean, dependency);
+//                    } else {
+//                        // 从原型bean容器中查找依赖对象并注入
+//                        Class<?> prototypeBeanClass = prototypeBeanClasses.get(field.getType().getName());
+//                        if (prototypeBeanClass != null) {
+//                            // 创建原型Bean实例
+//                            dependency = doCreateBean(prototypeBeanClass);
+//                            field.set(bean, dependency);
+//                        } else {
+//                            throw new RuntimeException("Dependency not found: " + field.getType().getName());
+//                        }
+//                    }
+//                }
             }
         }
     }
@@ -676,11 +705,8 @@ public class SimpleIoC {
             Object beanInstance = createBeanInstance(clazz);
             Object proxy = createProxyIfNeeded(beanInstance);
             // 2. 提前暴露工厂
-            ObjectFactory<?> factory = () -> {
-                return proxy != null ? proxy : beanInstance;
-            };
+            ObjectFactory<?> factory = () -> proxy.getClass().getName().contains("$$EnhancerByCGLIB$$") ? proxy : beanInstance;
             singletonFactories.put(beanName, factory);
-
             // 3. 填充属性(字段注入)
             populateBean(beanInstance);
 

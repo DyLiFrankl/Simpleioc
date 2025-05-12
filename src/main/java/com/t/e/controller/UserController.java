@@ -14,15 +14,23 @@ import java.util.List;
 @Controller
 @RequestMapping("/user")
 public class UserController {
-    @Autowired
+//    @Autowired
     private UserService userService;
-    @Autowired
+//    @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    public UserController(UserService userService,JdbcTemplate jdbcTemplate) {
+        this.userService = userService;
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
     public UserController(){}
 
     @RequestMapping(value = "/info", method = "GET")
     @ResponseBody
     public Result<String> getUserInfo() {
+        userService.printUserName();
         return Result.Builder(200,"sucess",userService.getUserName()); // 返回 "John Doe"
     }
 
